@@ -15,5 +15,6 @@ addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0-M5" cross CrossVersion
 
 libraryDependencies ++= Seq(
   "org.spire-math" %% "cats" % "0.2.0",
-  "org.spire-math" %% "spire" % "0.10.1"
+  "org.spire-math" %% "spire" % "0.10.1",
+  "com.github.pathikrit" %% "better-files" % "2.13.0"
 )
