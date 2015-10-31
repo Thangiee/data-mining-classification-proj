@@ -2,16 +2,15 @@ package project1
 
 import java.util.Random
 
-import libsvm.LibSVM
-import net.sf.javaml.core.Dataset
-import net.sf.javaml.tools.data.FileHandler
 import better.files._
+import libsvm.LibSVM
+import net.sf.javaml.classification.evaluation.CrossValidation
+import net.sf.javaml.tools.data.FileHandler
+import project1.utils._
 import spire.implicits._
-import spire.math.Real
 
 import scala.collection.immutable.IndexedSeq
 import scala.io.StdIn._
-import scala.reflect.ClassTag
 import scala.util.Try
 
 object Main {
@@ -20,7 +19,7 @@ object Main {
 
   def parseData(data: String): DataPoint = {
     val labelAndAttr = data.split(",")
-    val (label, attrs) = (labelAndAttr.head, labelAndAttr.tail.map(Real(_)))
+    val (label, attrs) = (labelAndAttr.head, labelAndAttr.tail.map(_.toDouble))
     DataPoint(Some(label), attrs)
   }
 
@@ -56,7 +55,7 @@ object Main {
     }
 
     print("\n Choose the number of k-folds (default=5): ")
-    val k = Try(readInt()).getOrElse(5)
+    val numOfFolds = Try(readInt()).getOrElse(5)
 
     print(
       """
@@ -67,68 +66,61 @@ object Main {
         .stripMargin)
 
 
-    if (readLine() == "2") {
-      val experiments = FileHandler.loadDataset(dataSetFile.toJava, 0, ",").folds(k, new Random(System.currentTimeMillis()))
-
+    if (readLine() == "2") {  // SVM
       import scala.collection.JavaConversions._
-      println(experiments.head.diff(experiments.tail.head).size)
-//      val svm = new LibSVM
 
-//      svm.buildClassifier(a.head._1.asInstanceOf[Dataset])
+      print(
+        """
+          | [0] linear
+          | [1] polynomial
+          | [2] radial basis function
+          | [3] sigmoid
+          |
+          | Choose a kernel_type (default=2): """
+          .stripMargin)
+      val kernel = Try(readInt()).getOrElse(2)
 
-    } else {
+      val defaultGamma = 1.0 / (dataSetFile.lines.next().split(",").length - 1) // 1/num_features
+      print(s"\n Choose the gamma value: (default=$defaultGamma): ")
+      val gamma = Try(readDouble()).getOrElse(defaultGamma)
 
-      val experiments: Seq[(TestingData, TrainingData)] = kFold(dataSetFile.lines.toVector.map(parseData), k)
-      val results = experiments.zipWithIndex.map { case ((testing, training), i) =>
-        println(s" > running experiment $i")
-        val predictions = testing.map(unknown => KNN.classify(training, unknown, 5))
+      val dataSet = FileHandler.loadDataset(dataSetFile.toJava, 0, ",")
+
+      val svm = new LibSVM
+      val params = svm.getParameters
+      params.kernel_type = kernel
+      params.gamma = gamma
+      svm.buildClassifier(dataSet)
+
+      println(svm.getParameters.C, svm.getParameters.gamma)
+
+      val cv = new CrossValidation(svm)
+      val results = cv.crossValidation(dataSet, numOfFolds, new Random(System.currentTimeMillis()))
+
+      println(s"\n SVM results (${dataSetFile.name}, k-folds=$numOfFolds, kernel type=$kernel, gamma=$gamma)")
+      println(s" ------------------------------------------------------------------------")
+      println(" Accuracy = " + results.values().map(_.getAccuracy).toSeq.mean)
+      println(" F-score  = " + results.values().map(_.getFMeasure).toSeq.mean)
+
+    } else {  // KNN
+      print("\n Choose the number of nearest neighbors (default=5): ")
+      val k = Try(readInt()).getOrElse(5)
+
+      val experiments: Seq[(TestingData, TrainingData)] = kFold(dataSetFile.lines.toVector.map(parseData), numOfFolds)
+
+      val results = experiments.zipWithIndex.par.map { case ((testing, training), i) =>
+        println(s" > running knn experiment ${i+1}")
+        val predictions = testing.map(unknown => KNN.classify(training, unknown, k))
         testing.flatMap(_.label) zip predictions.flatMap(_.label)
       }
 
-      results.foreach(res => println(Evaluator(res).avgAccuracy))
+      val evaluators = results.map(res => Evaluator(res))
+      println(s"\n KNN results (${dataSetFile.name}, k-folds=$numOfFolds, neighbors=$k)")
+      println(s" ---------------------------------------------------------")
+      println(s"\nAccuracy = ${evaluators.map(_.avgAccuracy).toVector.mean}")
+      println(s"F-score  = ${evaluators.map(_.avgF1Score).toVector.mean}")
     }
 
   }
-
-
-
-  //  val f = "iris-with-label.csv".toFile
-  //
-  //  val data = FileHandler.loadDataset(f.toJava, 0, ",")
-  //  val svm = new LibSVM
-  //
-  //  svm.buildClassifier(data)
-  //
-  //  var corr, wrong = 0
-  //
-  //  (0 until data.size).foreach { i =>
-  //    val inst = data.instance(i)
-  //    val predict = svm.classify(inst)
-  //    val real = inst.classValue()
-  //    if (predict == real) corr += 1 else wrong  += 1
-  //  }
-  //
-  //  println(s"correct: $corr")
-  //  println(s"wrong: $wrong")
-
-
-  //    val predict = svm.classify(d)
-
-  //  val (testing, trainingSet) =
-  //    kFoldPartition(
-  //      data = (f.lines zip l.lines).toSeq.map(d => parseData(d._1, d._2)),
-  //      k = 5
-  //    )
-  //
-  //  val data = FileHandler.loadDataset(f.toJava, 0, ",")
-  //  println(data)
-  //  val exp = trainingSet.head
-  //  val predictions = exp.map(test => KNN.classify(exp, test, 5))
-  //
-  //  val a = (exp.flatMap(_.label) zip predictions.flatMap(_.label)).toList
-  //
-  //  val eva = Evaluator(a)
-  //
-  //  println(eva.avgAccuracy, eva.avgF1Score)
 
 }
