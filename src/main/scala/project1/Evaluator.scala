@@ -6,7 +6,7 @@ import cats.syntax.eq._
 
 import scala.collection._
 
-case class Evaluator(testResult: List[(RealLabel, ClassifyLabel)]) {
+case class Evaluator(testResult: Seq[(RealLabel, ClassifyLabel)]) {
 
   private val labels = testResult.map(_._1).distinct
   private val confusionMatrix = new mutable.HashMap[(String, String), Int] // todo: could probability be made immutable

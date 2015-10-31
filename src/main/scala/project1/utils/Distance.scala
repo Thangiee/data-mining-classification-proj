@@ -1,10 +1,10 @@
-package project1
+package project1.utils
 
 import spire.implicits._
 import spire.math._
 
 object Distance {
-  type Coordinates = Seq[Real]
+  type Coordinates = Seq[Double]
 
   def manhattan(coords1: Coordinates, coords2: Coordinates): Real = minkowski(coords1, coords2, 1)
 

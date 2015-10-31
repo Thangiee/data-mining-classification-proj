@@ -77,7 +77,15 @@ object Main {
 //      svm.buildClassifier(a.head._1.asInstanceOf[Dataset])
 
     } else {
-      val experiments = kFold(dataSetFile.lines.toVector.map(parseData), k)
+
+      val experiments: Seq[(TestingData, TrainingData)] = kFold(dataSetFile.lines.toVector.map(parseData), k)
+      val results = experiments.zipWithIndex.map { case ((testing, training), i) =>
+        println(s" > running experiment $i")
+        val predictions = testing.map(unknown => KNN.classify(training, unknown, 5))
+        testing.flatMap(_.label) zip predictions.flatMap(_.label)
+      }
+
+      results.foreach(res => println(Evaluator(res).avgAccuracy))
     }
 
   }
