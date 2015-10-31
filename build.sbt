@@ -1,8 +1,9 @@
 name := "data-mining-proj-classification"
-
 version := "1.0"
-
 scalaVersion := "2.11.7"
+
+mainClass in assembly := Some("project1.Main")
+assemblyOutputPath in assembly := new File("./classifier.jar")
 
 scalacOptions ++= Seq(
   "-deprecation",
